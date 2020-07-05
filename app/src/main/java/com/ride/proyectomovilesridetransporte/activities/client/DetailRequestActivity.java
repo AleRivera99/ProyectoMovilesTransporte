@@ -1,5 +1,6 @@
 package com.ride.proyectomovilesridetransporte.activities.client;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
@@ -21,9 +22,14 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.SquareCap;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.ValueEventListener;
 import com.ride.proyectomovilesridetransporte.R;
 import com.ride.proyectomovilesridetransporte.includes.MyToolbar;
+import com.ride.proyectomovilesridetransporte.models.Info;
 import com.ride.proyectomovilesridetransporte.providers.GoogleApiProvider;
+import com.ride.proyectomovilesridetransporte.providers.InfoProvider;
 import com.ride.proyectomovilesridetransporte.utils.DecodePoints;
 
 import org.json.JSONArray;
@@ -53,6 +59,7 @@ public class DetailRequestActivity extends AppCompatActivity  implements OnMapRe
     private LatLng mDestinationLatLng;
 
     private GoogleApiProvider mGoogleApiProvider;
+    private InfoProvider mInfoProvider;
 
     private List<LatLng> mPolylineList;
     private PolylineOptions mPolylineOptions;
@@ -60,7 +67,7 @@ public class DetailRequestActivity extends AppCompatActivity  implements OnMapRe
     private TextView mTextViewOrigin;
     private TextView mTextViewDestination;
     private TextView mTextViewTime;
-    private TextView mTextViewDistance;
+    private TextView mtextViewPrice;
 
     private Button mButtonRequest;
 
@@ -84,11 +91,12 @@ public class DetailRequestActivity extends AppCompatActivity  implements OnMapRe
         mDestinationLatLng = new LatLng(mExtraDestinationLat, mExtraDestinationLng);
 
         mGoogleApiProvider = new GoogleApiProvider(DetailRequestActivity.this);
+        mInfoProvider = new InfoProvider();
 
         mTextViewOrigin = findViewById(R.id.textViewOrigin);
         mTextViewDestination = findViewById(R.id.textViewDestination);
         mTextViewTime = findViewById(R.id.textViewTime);
-        mTextViewDistance = findViewById(R.id.textViewDistance);
+        mtextViewPrice = findViewById(R.id.textViewPrice);
         mButtonRequest = findViewById(R.id.btnRequestNow);
 
         mTextViewOrigin.setText(mExtraOrigin);
@@ -148,8 +156,16 @@ public class DetailRequestActivity extends AppCompatActivity  implements OnMapRe
                     JSONObject duration = leg.getJSONObject("duration");
                     String distanceText = distance.getString("text");
                     String durationText = duration.getString("text");
-                    mTextViewTime.setText(durationText);
-                    mTextViewDistance.setText(distanceText);
+                    mTextViewTime.setText(distanceText + " en " + durationText);
+
+                    String[] distanceAndKm = distanceText.split(" ");
+                    double distanceValue = Double.parseDouble(distanceAndKm[0]);
+
+                    String[] durationAndMins = distanceText.split(" ");
+                    double durationValue = Double.parseDouble(durationAndMins[0]);
+
+                    calculePrice(distanceValue, durationValue);
+
 
                 } catch(Exception e) {
                     Log.d("Error", "Error encontrado " + e.getMessage());
@@ -158,6 +174,26 @@ public class DetailRequestActivity extends AppCompatActivity  implements OnMapRe
 
             @Override
             public void onFailure(Call<String> call, Throwable t) {
+
+            }
+        });
+    }
+
+    private void calculePrice(final double distanceValue, final double durationValue) {
+        mInfoProvider.getInfo().addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()){
+                    Info info = dataSnapshot.getValue(Info.class);
+                    double Totaldistance = distanceValue * info.getKm();
+                    double TotalDuration = durationValue * info.getMin();
+                    double Total = Totaldistance + TotalDuration;
+                    mtextViewPrice.setText(Total + "$");
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
 
             }
         });

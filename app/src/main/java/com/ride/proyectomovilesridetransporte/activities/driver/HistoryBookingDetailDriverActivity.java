@@ -1,4 +1,4 @@
-package com.ride.proyectomovilesridetransporte.activities.client;
+package com.ride.proyectomovilesridetransporte.activities.driver;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -13,13 +13,13 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.ValueEventListener;
 import com.ride.proyectomovilesridetransporte.R;
 import com.ride.proyectomovilesridetransporte.models.HistoryBooking;
-import com.ride.proyectomovilesridetransporte.providers.DriverProvider;
+import com.ride.proyectomovilesridetransporte.providers.ClientProvider;
 import com.ride.proyectomovilesridetransporte.providers.HistoryBookingProvider;
 import com.squareup.picasso.Picasso;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
-public class HistoryBookingDetailClientActivity extends AppCompatActivity {
+public class HistoryBookingDetailDriverActivity extends AppCompatActivity {
 
     private TextView mTextViewName;
     private TextView mTextViewOrigin;
@@ -31,12 +31,12 @@ public class HistoryBookingDetailClientActivity extends AppCompatActivity {
 
     private String mExtraId;
     private HistoryBookingProvider mHistoryBookingProvider;
-    private DriverProvider mDriverProvider;
+    private ClientProvider mClientProvider;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_history_booking_detail_client);
+        setContentView(R.layout.activity_history_booking_detail_driver);
 
         mTextViewName = findViewById(R.id.textViewNameBookingDetail);
         mTextViewOrigin = findViewById(R.id.textViewOriginHistoryBookingDetail);
@@ -46,7 +46,7 @@ public class HistoryBookingDetailClientActivity extends AppCompatActivity {
         mCircleImage = findViewById(R.id.circleImageHistoryBookingDetail);
         mCircleImageBack = findViewById(R.id.circleImageBack);
 
-        mDriverProvider = new DriverProvider();
+        mClientProvider = new ClientProvider();
         mExtraId = getIntent().getStringExtra("idHistoryBooking");
         mHistoryBookingProvider = new HistoryBookingProvider();
         getHistoryBooking();
@@ -73,7 +73,7 @@ public class HistoryBookingDetailClientActivity extends AppCompatActivity {
                         mRatingBarCalification.setRating((float) historyBooking.getCalificationClient());
                     }
 
-                    mDriverProvider.getDriver(historyBooking.getIdDriver()).addListenerForSingleValueEvent(new ValueEventListener() {
+                    mClientProvider.getClient(historyBooking.getIdClient()).addListenerForSingleValueEvent(new ValueEventListener() {
                         @Override
                         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                             if (dataSnapshot.exists()) {
@@ -81,7 +81,7 @@ public class HistoryBookingDetailClientActivity extends AppCompatActivity {
                                 mTextViewName.setText(name.toUpperCase());
                                 if (dataSnapshot.hasChild("image")) {
                                     String image = dataSnapshot.child("image").getValue().toString();
-                                    Picasso.with(HistoryBookingDetailClientActivity.this).load(image).into(mCircleImage);
+                                    Picasso.with(HistoryBookingDetailDriverActivity.this).load(image).into(mCircleImage);
                                 }
                             }
                         }
