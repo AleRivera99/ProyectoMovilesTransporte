@@ -17,6 +17,7 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
@@ -43,17 +44,20 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.SquareCap;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.ValueEventListener;
 import com.ride.proyectomovilesridetransporte.R;
 import com.ride.proyectomovilesridetransporte.models.FCMBody;
 import com.ride.proyectomovilesridetransporte.models.FCMResponse;
+import com.ride.proyectomovilesridetransporte.models.Info;
 import com.ride.proyectomovilesridetransporte.providers.AuthProvider;
 import com.ride.proyectomovilesridetransporte.providers.ClientBookingProvider;
 import com.ride.proyectomovilesridetransporte.providers.ClientProvider;
 import com.ride.proyectomovilesridetransporte.providers.GeofireProvider;
 import com.ride.proyectomovilesridetransporte.providers.GoogleApiProvider;
+import com.ride.proyectomovilesridetransporte.providers.InfoProvider;
 import com.ride.proyectomovilesridetransporte.providers.NotificationProvider;
 import com.ride.proyectomovilesridetransporte.providers.TokenProvider;
 import com.ride.proyectomovilesridetransporte.utils.DecodePoints;
@@ -83,6 +87,7 @@ public class MapDriverBookingActivity extends AppCompatActivity implements OnMap
 
 
 
+
     private LocationRequest mLocationRequest;
     private FusedLocationProviderClient mFusedLocation;
 
@@ -96,6 +101,7 @@ public class MapDriverBookingActivity extends AppCompatActivity implements OnMap
     private TextView mTextViewEmailClientBooking;
     private TextView mTextViewOriginClientBooking;
     private TextView mTextViewDestinationClientBooking;
+    private TextView mTextViewTime;
     private ImageView mImageViewBooking;
 
     private String mExtraClientId;
@@ -107,12 +113,41 @@ public class MapDriverBookingActivity extends AppCompatActivity implements OnMap
     private List<LatLng> mPolylineList;
     private PolylineOptions mPolylineOptions;
 
+    private InfoProvider mInfoProvider;
+    private Info mInfo;
+
     private boolean mIsFirstTime = true;
     private boolean mIsCloseToClient = false;
 
     private Button mButtonStartBooking;
     private Button mButtonFinishBooking;
 
+    double mDistanceInmeters = 1;
+    int mMinutes = 0;
+    int mSeconds = 0;
+    boolean mSecondsIsOver = false;
+    boolean mRideStart = false;
+    Handler mHandler = new Handler();
+    Location mPriviusLocation = new Location("");
+
+    Runnable runnable = new Runnable() {
+        @Override
+        public void run() {
+            mSeconds++;
+            if (!mSecondsIsOver) {
+                mTextViewTime.setText(mSeconds + " Seg");
+            } else{
+                mTextViewTime.setText(mMinutes+ " Min" + mSeconds);
+            }
+
+            if(mSeconds==59){
+                mSeconds= 0;
+                mSecondsIsOver = true;
+                mMinutes++;
+            }
+            mHandler.postDelayed(runnable,1000);
+        }
+    };
 
     LocationCallback mLocationCallback = new LocationCallback() {
         @Override
@@ -125,7 +160,12 @@ public class MapDriverBookingActivity extends AppCompatActivity implements OnMap
                     if (mMarker != null) {
                         mMarker.remove();
                     }
+                    if(mRideStart){
+                        mDistanceInmeters = mDistanceInmeters + mPriviusLocation.distanceTo(location);
+                        Log.d("ENTRO", "Distancia recorrida: " + mDistanceInmeters);
+                    }
 
+                    mPriviusLocation = location;
                     mMarker = mMap.addMarker(new MarkerOptions().position(
                             new LatLng(location.getLatitude(), location.getLongitude())
                             )
@@ -163,6 +203,7 @@ public class MapDriverBookingActivity extends AppCompatActivity implements OnMap
         mClientProvider = new ClientProvider();
         mClientBookingProvider = new ClientBookingProvider();
         mNotificationProvider = new NotificationProvider();
+        mInfoProvider = new InfoProvider();
 
 
         mFusedLocation = LocationServices.getFusedLocationProviderClient(this);
@@ -177,8 +218,9 @@ public class MapDriverBookingActivity extends AppCompatActivity implements OnMap
         mButtonStartBooking = findViewById(R.id.btnStartBooking);
         mButtonFinishBooking = findViewById(R.id.btnFinishBooking);
         mImageViewBooking = findViewById(R.id.imageViewClientBooking);
+        mTextViewTime = findViewById(R.id.textViewCard);
 
-
+        getInfo();
         mExtraClientId = getIntent().getStringExtra("idClient");
         mGoogleApiProvider = new GoogleApiProvider(MapDriverBookingActivity.this);
 
@@ -204,18 +246,62 @@ public class MapDriverBookingActivity extends AppCompatActivity implements OnMap
         });
     }
 
-    private void finishBooking() {
-        mClientBookingProvider.updateStatus(mExtraClientId, "finish");
-        mClientBookingProvider.updateIdHistoryBooking(mExtraClientId);
-        sendNotification("Viaje finalizado");
-        if (mFusedLocation != null) {
-            mFusedLocation.removeLocationUpdates(mLocationCallback);
+    private void calculeRide(){
+        if (mMinutes == 0){
+            mMinutes = 1;
         }
-        mGeofireProvider.removeLocation(mAuthProvider.getId());
-        Intent intent = new Intent(MapDriverBookingActivity.this, CalificationClientActivity.class);
-        intent.putExtra("idClient", mExtraClientId);
-        startActivity(intent);
-        finish();
+        double priceMinute = mMinutes * mInfo.getMin();
+        double priceKm = (mDistanceInmeters / 1000) * mInfo.getKm();
+        Log.d("VALORES: ", "Minu Total:" + priceMinute);
+        Log.d("VALORES: ", "Km Total:" + (mDistanceInmeters / 1000));
+        final double total = priceMinute + priceKm;
+        mClientBookingProvider.updatePrice(mExtraClientId, total).addOnSuccessListener(new OnSuccessListener<Void>() {
+            @Override
+            public void onSuccess(Void aVoid) {
+                mClientBookingProvider.updateStatus(mExtraClientId, "finish");
+                Intent intent = new Intent(MapDriverBookingActivity.this, CalificationClientActivity.class);
+                intent.putExtra("idClient", mExtraClientId);
+                intent.putExtra("price", total);
+                startActivity(intent);
+                finish();
+            }
+        });
+
+    }
+    private void getInfo() {
+        mInfoProvider.getInfo().addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()){
+                    mInfo= dataSnapshot.getValue(Info.class);
+
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+            }
+        });
+    }
+
+
+    private void finishBooking() {
+        mClientBookingProvider.updateIdHistoryBooking(mExtraClientId).addOnSuccessListener(new OnSuccessListener<Void>() {
+            @Override
+            public void onSuccess(Void aVoid) {
+                sendNotification("Viaje finalizado");
+                if (mFusedLocation != null) {
+                    mFusedLocation.removeLocationUpdates(mLocationCallback);
+                }
+                mGeofireProvider.removeLocation(mAuthProvider.getId());
+                if (mHandler != null){
+                    mHandler.removeCallbacks(runnable);
+                }
+
+                calculeRide();
+            }
+        });
     }
 
     private void startBooking() {
@@ -226,6 +312,8 @@ public class MapDriverBookingActivity extends AppCompatActivity implements OnMap
         mMap.addMarker(new MarkerOptions().position(mDestinationLatLng).title("Destino").icon(BitmapDescriptorFactory.fromResource(R.drawable.icon_blue)));
         drawRoute(mDestinationLatLng);
         sendNotification("Viaje iniciado");
+        mRideStart = true;
+        mHandler.postDelayed(runnable,1000);
     }
 
     private double getDistanceBetween(LatLng clientLatLng, LatLng driverLatLng) {

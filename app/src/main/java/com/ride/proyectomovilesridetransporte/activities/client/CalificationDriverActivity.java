@@ -28,6 +28,7 @@ public class CalificationDriverActivity extends AppCompatActivity {
 
     private TextView mTextViewOrigin;
     private TextView mTextViewDestination;
+    private TextView mTextViewPrice;
     private RatingBar mRatinBar;
     private Button mButtonCalification;
 
@@ -48,6 +49,7 @@ public class CalificationDriverActivity extends AppCompatActivity {
         mTextViewOrigin = findViewById(R.id.textViewOriginCalification);
         mRatinBar = findViewById(R.id.ratingbarCalification);
         mButtonCalification = findViewById(R.id.btnCalification);
+        mTextViewPrice = findViewById(R.id.textViewPrice);
 
         mClientBookingProvider = new ClientBookingProvider();
         mHistoryBookingProvider = new HistoryBookingProvider();
@@ -76,6 +78,7 @@ public class CalificationDriverActivity extends AppCompatActivity {
                 if (dataSnapshot.exists()) {
                     ClientBooking clientBooking = dataSnapshot.getValue(ClientBooking.class);
                     mTextViewOrigin.setText(clientBooking.getOrigin());
+                    mTextViewPrice.setText(String.format("%.1f",clientBooking.getPrice()) + "$");
                     mTextViewDestination.setText(clientBooking.getDestination());
                     mHistoryBooking = new HistoryBooking(
                             clientBooking.getIdHistoryBooking(),

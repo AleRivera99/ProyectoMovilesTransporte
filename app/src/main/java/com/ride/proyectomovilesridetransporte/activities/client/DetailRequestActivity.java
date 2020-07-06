@@ -188,7 +188,9 @@ public class DetailRequestActivity extends AppCompatActivity  implements OnMapRe
                     double Totaldistance = distanceValue * info.getKm();
                     double TotalDuration = durationValue * info.getMin();
                     double Total = Totaldistance + TotalDuration;
-                    mtextViewPrice.setText(Total + "$");
+                    double minTotal = Total -0.5;
+                    double mmaxTotal = Total + 0.5;
+                    mtextViewPrice.setText(minTotal + " - " + mmaxTotal+ "$" );
                 }
             }
 

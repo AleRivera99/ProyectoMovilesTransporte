@@ -181,7 +181,7 @@ public class MapClientActivity extends AppCompatActivity implements OnMapReadyCa
     private void limitSearch() {
         LatLng northSide = SphericalUtil.computeOffset(mCurrentLatLng, 5000, 0);
         LatLng southSide = SphericalUtil.computeOffset(mCurrentLatLng, 5000, 180);
-
+        mAutocomplete.setCountry("SV");
         mAutocomplete.setLocationBias(RectangularBounds.newInstance(southSide, northSide));
         mAutocompleteDestination.setCountry("SV");
         mAutocompleteDestination.setLocationBias(RectangularBounds.newInstance(southSide, northSide));
